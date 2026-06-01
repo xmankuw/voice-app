@@ -233,3 +233,8 @@ input, button { font-family: inherit; }
 .level-meter { width: 100%; height: 10px; background: #1e1f22; border-radius: 6px; overflow: hidden; }
 .level-fill { height: 100%; background: linear-gradient(90deg, #23a55a, #faa61a); border-radius: 6px; transition: width .05s linear; }
 .settings-note { font-size: 13px; color: var(--txt-muted); line-height: 1.5; background: #2b2d31; padding: 10px 12px; border-radius: 8px; }
+
+/* شريط المستوى في نافذة الإعدادات */
+.srange { width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: #1e1f22; border-radius: 6px; outline: none; cursor: pointer; margin-top: 4px; }
+.srange::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--white); cursor: pointer; }
+.srange::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--white); cursor: pointer; }
