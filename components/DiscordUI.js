@@ -12,7 +12,7 @@ import {
 import { Track, RoomEvent } from "livekit-client";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Volume2, VolumeX, Send, Signal, Settings, X, Maximize2, Plus, Minus,
+  PhoneOff, Volume2, VolumeX, Send, Signal, Settings, X, Maximize2, Plus, Minus, Expand,
 } from "lucide-react";
 
 const COLORS = ["#5865f2", "#eb459e", "#faa61a", "#23a55a", "#3498db", "#9b59b6", "#e67e22", "#1abc9c"];
@@ -135,6 +135,7 @@ export default function DiscordUI({ username, roomName, onLeave }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragRef = useRef(null);
+  const appRef = useRef(null);
   const micLevel = useMicLevel(isMicrophoneEnabled, localParticipant, activeMic);
 
   // من يتكلم الآن
@@ -170,6 +171,13 @@ export default function DiscordUI({ username, roomName, onLeave }) {
     load();
     navigator.mediaDevices?.addEventListener?.("devicechange", load);
     return () => navigator.mediaDevices?.removeEventListener?.("devicechange", load);
+  }, []);
+
+  // إغلاق العرض لو خرج المستخدم من ملء الشاشة (Esc)
+  useEffect(() => {
+    const onFs = () => { if (!document.fullscreenElement) setFullscreen(false); };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
   const setVolumeFor = (identity, v) => {
@@ -255,7 +263,14 @@ export default function DiscordUI({ username, roomName, onLeave }) {
   const onMove = (e) => { if (!dragRef.current) return; setPan({ x: dragRef.current.px + (e.clientX - dragRef.current.sx), y: dragRef.current.py + (e.clientY - dragRef.current.sy) }); };
   const onUp = () => { dragRef.current = null; };
   const openFullscreen = () => { resetZoom(); setFullscreen(true); };
-  const closeFullscreen = () => { setFullscreen(false); resetZoom(); };
+  const closeFullscreen = () => {
+    setFullscreen(false); resetZoom();
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch {}
+  };
+  const enterRealFullscreen = () => {
+    resetZoom(); setFullscreen(true);
+    try { appRef.current?.requestFullscreen?.(); } catch {}
+  };
 
   const screenRef = tracks.find((t) => t.source === Track.Source.ScreenShare && t.publication?.track);
   const cameraOf = (identity) =>
@@ -270,7 +285,7 @@ export default function DiscordUI({ username, roomName, onLeave }) {
   const leave = () => { room?.disconnect(); onLeave && onLeave(); };
 
   return (
-    <div className="app">
+    <div className="app" ref={appRef}>
       {/* الشريط الجانبي */}
       <aside className="sidebar">
         <div className="srv-header">🎧 {roomName}</div>
@@ -370,6 +385,11 @@ export default function DiscordUI({ username, roomName, onLeave }) {
             onClick={toggleScreen}>
             {isScreenShareEnabled ? <MonitorOff size={22} /> : <Monitor size={22} />}
           </button>
+          {screenRef && (
+            <button className="cc" title="ملء الشاشة" onClick={enterRealFullscreen}>
+              <Expand size={22} />
+            </button>
+          )}
           <button className="cc" title="إعدادات الصوت" onClick={() => setSettingsOpen(true)}><Settings size={22} /></button>
           <button className="cc danger" title="مغادرة" onClick={leave}><PhoneOff size={22} /></button>
         </div>
