@@ -208,3 +208,28 @@ input, button { font-family: inherit; }
   .sidebar { width: 180px; }
   .tile { width: 100%; max-width: 320px; }
 }
+
+/* ===== تحكم صوت كل صديق ===== */
+.pcontrols { display: flex; align-items: center; gap: 6px; padding: 0 8px 6px 22px; }
+.pc-btn { width: 26px; height: 26px; flex-shrink: 0; border: none; background: transparent; color: var(--txt-muted); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.pc-btn:hover { background: var(--hover); color: var(--white); }
+.pc-btn.on { color: #f23f43; }
+.vol { flex: 1; height: 4px; -webkit-appearance: none; appearance: none; background: #1e1f22; border-radius: 4px; outline: none; cursor: pointer; }
+.vol::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--white); cursor: pointer; }
+.vol::-moz-range-thumb { width: 14px; height: 14px; border: none; border-radius: 50%; background: var(--white); cursor: pointer; }
+.vol-pct { font-size: 11px; color: var(--txt-muted); width: 34px; text-align: left; flex-shrink: 0; }
+
+/* ===== نافذة إعدادات الصوت ===== */
+.settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.settings-modal { width: 100%; max-width: 440px; background: var(--chat); border-radius: 12px; padding: 20px; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+.settings-head { display: flex; align-items: center; justify-content: space-between; font-size: 18px; font-weight: 700; color: var(--white); margin-bottom: 16px; }
+.modal-close { width: 32px; height: 32px; border: none; background: transparent; color: var(--txt-muted); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: var(--hover); color: var(--white); }
+.settings-row { margin-bottom: 18px; }
+.settings-row label { display: block; color: var(--channel); font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+.settings-row select { width: 100%; background: #1e1f22; color: var(--white); border: none; border-radius: 6px; padding: 10px; font-size: 14px; outline: none; cursor: pointer; }
+.settings-row select:focus { box-shadow: 0 0 0 2px var(--blurple); }
+.meter-label { font-size: 12px; color: var(--txt-muted); margin: 10px 0 6px; }
+.level-meter { width: 100%; height: 10px; background: #1e1f22; border-radius: 6px; overflow: hidden; }
+.level-fill { height: 100%; background: linear-gradient(90deg, #23a55a, #faa61a); border-radius: 6px; transition: width .05s linear; }
+.settings-note { font-size: 13px; color: var(--txt-muted); line-height: 1.5; background: #2b2d31; padding: 10px 12px; border-radius: 8px; }
