@@ -12,7 +12,7 @@ import {
 import { Track, RoomEvent } from "livekit-client";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Volume2, VolumeX, Send, Signal, Settings, X, Maximize2,
+  PhoneOff, Volume2, VolumeX, Send, Signal, Settings, X, Maximize2, Plus, Minus,
 } from "lucide-react";
 
 const COLORS = ["#5865f2", "#eb459e", "#faa61a", "#23a55a", "#3498db", "#9b59b6", "#e67e22", "#1abc9c"];
@@ -132,6 +132,9 @@ export default function DiscordUI({ username, roomName, onLeave }) {
   const [streamQuality, setStreamQuality] = useState("hd");
   const [streamAudio, setStreamAudio] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const dragRef = useRef(null);
   const micLevel = useMicLevel(isMicrophoneEnabled, localParticipant, activeMic);
 
   // من يتكلم الآن
@@ -243,6 +246,17 @@ export default function DiscordUI({ username, roomName, onLeave }) {
     else setStreamMenuOpen(true);
   };
 
+  // تكبير/تصغير وتحريك البث
+  const resetZoom = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+  const zoomIn = () => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)));
+  const zoomOut = () => setZoom((z) => { const n = Math.max(1, +(z - 0.25).toFixed(2)); if (n === 1) setPan({ x: 0, y: 0 }); return n; });
+  const onWheel = (e) => { if (e.deltaY < 0) zoomIn(); else zoomOut(); };
+  const onDown = (e) => { if (zoom <= 1) return; dragRef.current = { sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y }; };
+  const onMove = (e) => { if (!dragRef.current) return; setPan({ x: dragRef.current.px + (e.clientX - dragRef.current.sx), y: dragRef.current.py + (e.clientY - dragRef.current.sy) }); };
+  const onUp = () => { dragRef.current = null; };
+  const openFullscreen = () => { resetZoom(); setFullscreen(true); };
+  const closeFullscreen = () => { setFullscreen(false); resetZoom(); };
+
   const screenRef = tracks.find((t) => t.source === Track.Source.ScreenShare && t.publication?.track);
   const cameraOf = (identity) =>
     tracks.find((t) => t.source === Track.Source.Camera && t.participant?.identity === identity && t.publication?.track && !t.publication?.isMuted);
@@ -319,7 +333,7 @@ export default function DiscordUI({ username, roomName, onLeave }) {
               <VideoTrack trackRef={screenRef} className="screen-video" />
               <div className="screen-bar">
                 <span className="screen-label">🔴 يبث الآن: {screenName}</span>
-                <button className="watch-btn" onClick={() => setFullscreen(true)}>
+                <button className="watch-btn" onClick={openFullscreen}>
                   <Maximize2 size={16} /> شاهد ملء الشاشة
                 </button>
               </div>
@@ -459,14 +473,34 @@ export default function DiscordUI({ username, roomName, onLeave }) {
         </div>
       )}
 
-      {/* مشاهدة البث ملء الشاشة */}
+      {/* مشاهدة البث ملء الشاشة مع تكبير/تصغير */}
       {fullscreen && screenRef && (
         <div className="fs-overlay">
           <div className="fs-top">
             <span className="screen-label">🔴 بث: {screenName}</span>
-            <button className="fs-close" onClick={() => setFullscreen(false)}><X size={22} /> خروج</button>
+            <div className="fs-zoom">
+              <button className="fs-zbtn" onClick={zoomOut} title="تصغير"><Minus size={18} /></button>
+              <span className="fs-zval">{Math.round(zoom * 100)}%</span>
+              <button className="fs-zbtn" onClick={zoomIn} title="تكبير"><Plus size={18} /></button>
+              <button className="fs-zbtn" onClick={resetZoom} title="إرجاع الحجم">إرجاع</button>
+            </div>
+            <button className="fs-close" onClick={closeFullscreen}><X size={22} /> خروج</button>
           </div>
-          <VideoTrack trackRef={screenRef} className="fs-video" />
+          <div
+            className="fs-stage"
+            onWheel={onWheel}
+            onMouseDown={onDown}
+            onMouseMove={onMove}
+            onMouseUp={onUp}
+            onMouseLeave={onUp}
+            onDoubleClick={resetZoom}
+            style={{ cursor: zoom > 1 ? (dragRef.current ? "grabbing" : "grab") : "default" }}
+          >
+            <div className="fs-zoomwrap" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
+              <VideoTrack trackRef={screenRef} className="fs-video" />
+            </div>
+          </div>
+          <div className="fs-hint">عجلة الماوس أو + / − للتكبير · اسحب للتحريك · دبل-كليك للإرجاع</div>
         </div>
       )}
     </div>
