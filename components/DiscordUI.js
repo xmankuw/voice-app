@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   useRoomContext,
   useLocalParticipant,
@@ -117,6 +117,9 @@ export default function DiscordUI({ username, roomName, onLeave }) {
   const [activeMic, setActiveMic] = useState("");
   const [activeSpeaker, setActiveSpeaker] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [masterVol, setMasterVol] = useState(1);   // مستوى السماعة العام 0..1.5
+  const [micGain, setMicGain] = useState(1);        // تكبير صوت المايك 0..2
+  const micProc = useRef(null);
   const micLevel = useMicLevel(isMicrophoneEnabled, localParticipant, activeMic);
 
   // من يتكلم الآن
@@ -132,11 +135,11 @@ export default function DiscordUI({ username, roomName, onLeave }) {
     participants.forEach((p) => {
       if (p.isLocal) return;
       try {
-        const v = localMuted.has(p.identity) ? 0 : (volumes[p.identity] ?? 1);
-        p.setVolume(v);
+        const base = localMuted.has(p.identity) ? 0 : (volumes[p.identity] ?? 1);
+        p.setVolume(base * masterVol);
       } catch {}
     });
-  }, [participants, volumes, localMuted]);
+  }, [participants, volumes, localMuted, masterVol]);
 
   // قراءة قائمة الأجهزة
   useEffect(() => {
@@ -161,8 +164,52 @@ export default function DiscordUI({ username, roomName, onLeave }) {
   const toggleLocalMute = (identity) =>
     setLocalMuted((prev) => { const n = new Set(prev); n.has(identity) ? n.delete(identity) : n.add(identity); return n; });
 
+  const teardownMicProc = async (restore) => {
+    if (!micProc.current) return;
+    try {
+      if (restore) {
+        const pub = localParticipant.getTrackPublication(Track.Source.Microphone);
+        const lk = pub?.audioTrack || pub?.track;
+        if (lk) await lk.restartTrack(activeMic ? { deviceId: { exact: activeMic } } : undefined);
+      }
+    } catch {}
+    try { micProc.current.ctx.close(); } catch {}
+    try { micProc.current.stream?.getTracks().forEach((t) => t.stop()); } catch {}
+    micProc.current = null;
+  };
+
+  // شريط تكبير/تصغير صوت المايك الطالع منك (100% = طبيعي)
+  const applyMicGain = async (g) => {
+    setMicGain(g);
+    try {
+      const pub = localParticipant.getTrackPublication(Track.Source.Microphone);
+      const lk = pub?.audioTrack || pub?.track;
+      if (!lk) return;
+      if (g === 1) { await teardownMicProc(true); return; }
+      if (!micProc.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: activeMic ? { deviceId: { exact: activeMic } } : true,
+        });
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = ctx.createMediaStreamSource(stream);
+        const gain = ctx.createGain();
+        const dest = ctx.createMediaStreamDestination();
+        source.connect(gain);
+        gain.connect(dest);
+        micProc.current = { ctx, source, gain, dest, stream };
+        await lk.replaceTrack(dest.stream.getAudioTracks()[0]);
+      }
+      micProc.current.gain.gain.value = g;
+    } catch {}
+  };
+
   const changeMic = async (deviceId) => {
-    try { await room.switchActiveDevice("audioinput", deviceId); setActiveMic(deviceId); } catch {}
+    try {
+      await teardownMicProc(false);
+      setMicGain(1);
+      await room.switchActiveDevice("audioinput", deviceId);
+      setActiveMic(deviceId);
+    } catch {}
   };
   const changeSpeaker = async (deviceId) => {
     try { await room.switchActiveDevice("audiooutput", deviceId); setActiveSpeaker(deviceId); } catch {}
@@ -322,6 +369,13 @@ export default function DiscordUI({ username, roomName, onLeave }) {
             </div>
 
             <div className="settings-row">
+              <label>مستوى المايك (التكبير) — {Math.round(micGain * 100)}%</label>
+              <input className="srange" type="range" min="0" max="200" value={Math.round(micGain * 100)}
+                onChange={(e) => applyMicGain(Number(e.target.value) / 100)} />
+              <div className="meter-label">100% = طبيعي. ارفعه لو صوتك ضعيف عندهم. (لو توقّف صوتك فجأة، رجّعه على 100%).</div>
+            </div>
+
+            <div className="settings-row">
               <label>السماعة (الإخراج)</label>
               <select value={activeSpeaker} onChange={(e) => changeSpeaker(e.target.value)}>
                 <option value="">السماعة الافتراضية</option>
@@ -330,6 +384,13 @@ export default function DiscordUI({ username, roomName, onLeave }) {
                 ))}
               </select>
               {devices.speaker.length === 0 && <div className="meter-label">اختيار السماعة غير مدعوم في هذا المتصفح.</div>}
+            </div>
+
+            <div className="settings-row">
+              <label>مستوى السماعة العام — {Math.round(masterVol * 100)}%</label>
+              <input className="srange" type="range" min="0" max="150" value={Math.round(masterVol * 100)}
+                onChange={(e) => setMasterVol(Number(e.target.value) / 100)} />
+              <div className="meter-label">يتحكم في صوت كل الأصدقاء مرة وحدة.</div>
             </div>
 
             <div className="settings-note">💡 للتحكم بصوت كل صديق (رفع/خفض أو كتمه عندك فقط)، استخدم الشريط تحت اسمه في القائمة الجانبية.</div>
