@@ -253,4 +253,13 @@ input, button { font-family: inherit; }
 .fs-top { height: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: #0b0c0e; color: #fff; }
 .fs-close { display: flex; align-items: center; gap: 6px; background: var(--danger); color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .fs-close:hover { background: #a12828; }
-.fs-video { flex: 1; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.fs-video { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* تكبير/تصغير وتحريك ملء الشاشة */
+.fs-stage { flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; position: relative; }
+.fs-zoomwrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: center center; will-change: transform; }
+.fs-zoom { display: flex; align-items: center; gap: 6px; }
+.fs-zbtn { background: #2b2d31; color: #fff; border: none; border-radius: 6px; min-width: 36px; height: 36px; padding: 0 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+.fs-zbtn:hover { background: #3a3d44; }
+.fs-zval { color: #fff; font-size: 13px; font-weight: 700; min-width: 50px; text-align: center; }
+.fs-hint { flex-shrink: 0; text-align: center; color: #949ba4; font-size: 12px; padding: 8px; background: #0b0c0e; }
