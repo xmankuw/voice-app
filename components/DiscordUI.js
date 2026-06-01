@@ -12,10 +12,17 @@ import {
 import { Track, RoomEvent } from "livekit-client";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Volume2, VolumeX, Send, Signal, Settings, X,
+  PhoneOff, Volume2, VolumeX, Send, Signal, Settings, X, Maximize2,
 } from "lucide-react";
 
 const COLORS = ["#5865f2", "#eb459e", "#faa61a", "#23a55a", "#3498db", "#9b59b6", "#e67e22", "#1abc9c"];
+
+const QUALITY = {
+  normal: { label: "عادي (720p · 15 فريم)", w: 1280, h: 720, fps: 15 },
+  hd: { label: "HD (720p · 30 فريم)", w: 1280, h: 720, fps: 30 },
+  fullhd: { label: "Full HD (1080p · 30 فريم)", w: 1920, h: 1080, fps: 30 },
+  gaming: { label: "ألعاب (1080p · 60 فريم)", w: 1920, h: 1080, fps: 60 },
+};
 function colorFor(id) {
   let h = 0;
   for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -120,6 +127,11 @@ export default function DiscordUI({ username, roomName, onLeave }) {
   const [masterVol, setMasterVol] = useState(1);   // مستوى السماعة العام 0..1.5
   const [micGain, setMicGain] = useState(1);        // تكبير صوت المايك 0..2
   const micProc = useRef(null);
+  // البث
+  const [streamMenuOpen, setStreamMenuOpen] = useState(false);
+  const [streamQuality, setStreamQuality] = useState("hd");
+  const [streamAudio, setStreamAudio] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
   const micLevel = useMicLevel(isMicrophoneEnabled, localParticipant, activeMic);
 
   // من يتكلم الآن
@@ -215,9 +227,27 @@ export default function DiscordUI({ username, roomName, onLeave }) {
     try { await room.switchActiveDevice("audiooutput", deviceId); setActiveSpeaker(deviceId); } catch {}
   };
 
+  // البث: بدء بالجودة المختارة + صوت اختياري
+  const startScreen = async () => {
+    setStreamMenuOpen(false);
+    const q = QUALITY[streamQuality] || QUALITY.hd;
+    try {
+      await localParticipant.setScreenShareEnabled(true, {
+        audio: streamAudio,
+        resolution: { width: q.w, height: q.h, frameRate: q.fps },
+      });
+    } catch {}
+  };
+  const toggleScreen = () => {
+    if (isScreenShareEnabled) localParticipant.setScreenShareEnabled(false);
+    else setStreamMenuOpen(true);
+  };
+
   const screenRef = tracks.find((t) => t.source === Track.Source.ScreenShare && t.publication?.track);
   const cameraOf = (identity) =>
     tracks.find((t) => t.source === Track.Source.Camera && t.participant?.identity === identity && t.publication?.track && !t.publication?.isMuted);
+  useEffect(() => { if (!screenRef) setFullscreen(false); }, [!!screenRef]);
+  const screenName = screenRef ? (screenRef.participant?.name || screenRef.participant?.identity) : "";
 
   const pingColor = ping == null ? "#949ba4" : ping < 80 ? "#23a55a" : ping < 200 ? "#faa61a" : "#f23f43";
   const pingLabel = ping == null ? "قياس…" : ping < 80 ? "ممتاز" : ping < 200 ? "جيد" : "مرتفع";
@@ -287,7 +317,12 @@ export default function DiscordUI({ username, roomName, onLeave }) {
           {screenRef && (
             <div className="screen">
               <VideoTrack trackRef={screenRef} className="screen-video" />
-              <span className="screen-label">🔴 بث شاشة — {screenRef.participant?.name || screenRef.participant?.identity}</span>
+              <div className="screen-bar">
+                <span className="screen-label">🔴 يبث الآن: {screenName}</span>
+                <button className="watch-btn" onClick={() => setFullscreen(true)}>
+                  <Maximize2 size={16} /> شاهد ملء الشاشة
+                </button>
+              </div>
             </div>
           )}
           <div className="tiles">
@@ -318,7 +353,7 @@ export default function DiscordUI({ username, roomName, onLeave }) {
             {isCameraEnabled ? <Video size={22} /> : <VideoOff size={22} />}
           </button>
           <button className={"cc" + (isScreenShareEnabled ? " active" : "")} title="بث الشاشة"
-            onClick={() => localParticipant.setScreenShareEnabled(!isScreenShareEnabled)}>
+            onClick={toggleScreen}>
             {isScreenShareEnabled ? <MonitorOff size={22} /> : <Monitor size={22} />}
           </button>
           <button className="cc" title="إعدادات الصوت" onClick={() => setSettingsOpen(true)}><Settings size={22} /></button>
@@ -395,6 +430,43 @@ export default function DiscordUI({ username, roomName, onLeave }) {
 
             <div className="settings-note">💡 للتحكم بصوت كل صديق (رفع/خفض أو كتمه عندك فقط)، استخدم الشريط تحت اسمه في القائمة الجانبية.</div>
           </div>
+        </div>
+      )}
+
+      {/* قائمة بدء البث */}
+      {streamMenuOpen && (
+        <div className="settings-overlay" onClick={() => setStreamMenuOpen(false)}>
+          <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-head">
+              <span>بدء البث 🎬</span>
+              <button className="modal-close" onClick={() => setStreamMenuOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="settings-row">
+              <label>الجودة</label>
+              <select value={streamQuality} onChange={(e) => setStreamQuality(e.target.value)}>
+                {Object.entries(QUALITY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+              <div className="meter-label">كل ما زادت الجودة زاد استهلاك النت. للألعاب اختر 60 فريم.</div>
+            </div>
+            <label className="chk">
+              <input type="checkbox" checked={streamAudio} onChange={(e) => setStreamAudio(e.target.checked)} />
+              بث الصوت مع الشاشة (صوت اللعبة/الفيديو)
+            </label>
+            <div className="meter-label">مشاركة الصوت تشتغل أفضل عند بث "تبويب متصفح" أو الشاشة كاملة في Chrome.</div>
+            <button className="start-stream" onClick={startScreen}><Monitor size={18} /> ابدأ البث الآن</button>
+            <div className="settings-note">💡 بعد الضغط، المتصفح بيسألك تختار: الشاشة كاملة، أو نافذة برنامج، أو تبويب.</div>
+          </div>
+        </div>
+      )}
+
+      {/* مشاهدة البث ملء الشاشة */}
+      {fullscreen && screenRef && (
+        <div className="fs-overlay">
+          <div className="fs-top">
+            <span className="screen-label">🔴 بث: {screenName}</span>
+            <button className="fs-close" onClick={() => setFullscreen(false)}><X size={22} /> خروج</button>
+          </div>
+          <VideoTrack trackRef={screenRef} className="fs-video" />
         </div>
       )}
     </div>
