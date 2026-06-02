@@ -22,6 +22,7 @@ const QUALITY = {
   hd: { label: "HD (720p · 30 فريم)", w: 1280, h: 720, fps: 30 },
   fullhd: { label: "Full HD (1080p · 30 فريم)", w: 1920, h: 1080, fps: 30 },
   gaming: { label: "ألعاب (1080p · 60 فريم)", w: 1920, h: 1080, fps: 60 },
+  q2k60: { label: "2K (1440p · 60 فريم) ⚡", w: 2560, h: 1440, fps: 60 },
 };
 function colorFor(id) {
   let h = 0;
@@ -480,7 +481,7 @@ export default function DiscordUI({ username, roomName, onLeave }) {
               <select value={streamQuality} onChange={(e) => setStreamQuality(e.target.value)}>
                 {Object.entries(QUALITY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
-              <div className="meter-label">كل ما زادت الجودة زاد استهلاك النت. للألعاب اختر 60 فريم.</div>
+              <div className="meter-label">كل ما زادت الجودة زاد استهلاك النت. للألعاب اختر 60 فريم. خيار 2K·60 يستهلك أكثر — يبيله نت قوي عندك وعند صديقك.</div>
             </div>
             <label className="chk">
               <input type="checkbox" checked={streamAudio} onChange={(e) => setStreamAudio(e.target.checked)} />
